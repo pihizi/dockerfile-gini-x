@@ -1,15 +1,46 @@
-FROM genee/gini:latest
+FROM genee/gini-alpine:latest
 MAINTAINER PiHiZi <pihizi@msn.com>
 
-ADD oci/oracle-instantclient12.2-basic-12.2.0.1.0-1.x86_64.rpm /tmp/oracle.rpm
-RUN apt-get install -y alien libaio1
-RUN alien -i /tmp/oracle.rpm
+# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/oci8/instantclient_12_1/
+ENV LD_LIBRARY_PATH /opt/oci8/instantclient_12_1/
 
-ADD oci/oci8.so /usr/lib/php5/20131226/oci8.so
-RUN echo "extension=oci8.so" > /etc/php5/mods-available/oci8.ini
-RUN php5enmod oci8
+RUN apk add --update --no-cache \
+    g++ \
+    gcc \
+    make \
+    libc6-compat \
+    libaio-dev \
+    php7-dev \
+    php7-pear
 
-RUN apt-get install -yq npm && ln -sf /usr/bin/nodejs /usr/bin/node && npm install -g less less-plugin-clean-css uglify-js && npm cache clean -f && npm install -g n && n stable && ln -sf /usr/local/n/versions/node/11.8.0/bin/node /usr/bin/node
+RUN echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories && \
+    apk add --update libaio libnsl
+
+RUN ln -s /usr/lib/libnsl.so.2 /usr/lib/libnsl.so.1
+
+RUN mkdir -p /opt/oci8
+
+COPY ./oci/instantclient-basic-linux.x64-12.1.0.2.0.zip /opt/oci8
+COPY ./oci/instantclient-sdk-linux.x64-12.1.0.2.0.zip /opt/oci8
+COPY ./oci/oci8-2.1.7.tgz /opt/oci8
+
+RUN cd /opt/oci8 \
+    && unzip instantclient-sdk-linux.x64-12.1.0.2.0.zip \
+    && unzip instantclient-basic-linux.x64-12.1.0.2.0.zip \
+    && cd instantclient_12_1/ \
+    && ln -s libclntsh.so.12.1 libclntsh.so \
+    && ln -s libocci.so.12.1 libocci.so \
+    && cd ../ \
+    && tar xzf oci8-2.1.7.tgz \
+    && cd oci8-2.1.7 \
+    && phpize \
+    && ./configure --with-oci8=shared,instantclient,/opt/oci8/instantclient_12_1 \
+    && make \
+    && make install \
+    && echo "extension=oci8.so" >> /etc/php7/conf.d/oci8.ini \
+    && cd /opt/oci8 \
+    && rm *.zip \
+    && rm *.tgz
 
 EXPOSE 9000
 
