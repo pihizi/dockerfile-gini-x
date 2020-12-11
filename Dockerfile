@@ -11,6 +11,7 @@ RUN apk add --update --no-cache \
     libc6-compat \
     libaio-dev \
     php7-dev \
+    php7-soap \
     php7-pear
 
 RUN echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories && \
